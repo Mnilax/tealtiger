@@ -111,3 +111,36 @@ jobs:
           else
             echo "No Python source files found — skipping type check"
           fi
+
+  # ---------------------------------------------------------------------------
+  # Python package — lint + tests (tealtiger-mcp)
+  # ---------------------------------------------------------------------------
+  mcp:
+    name: Python (tealtiger-mcp)
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' ||
+      contains(github.event.pull_request.changed_files, 'packages/tealtiger-mcp')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+
+      - name: Install lint tools
+        run: pip install --require-hashes -r .github/ci-requirements.txt
+
+      - name: Ruff lint (tealtiger-mcp)
+        working-directory: packages/tealtiger-mcp
+        run: ruff check .
+
+      - name: Install package + test deps
+        run: pip install -e "packages/tealtiger-mcp[dev]"
+
+      - name: Pytest (tealtiger-mcp)
+        working-directory: packages/tealtiger-mcp
+        run: python -m pytest tests/ -q
