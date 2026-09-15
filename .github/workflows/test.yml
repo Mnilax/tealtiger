@@ -11,6 +11,35 @@ permissions:
 
 jobs:
   # ---------------------------------------------------------------------------
+  # Detect which package trees changed, so package jobs can gate on it.
+  #
+  # NOTE: do NOT use `contains(github.event.pull_request.changed_files, ...)` —
+  # `changed_files` is an integer *count* in the pull_request payload, not a
+  # list of paths, so that expression is always false on PRs. We use
+  # dorny/paths-filter (which diffs the refs) to get reliable per-path booleans.
+  # ---------------------------------------------------------------------------
+  changes:
+    name: Detect changed packages
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.filter.outputs.python }}
+      mcp: ${{ steps.filter.outputs.mcp }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Filter changed paths
+        id: filter
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        with:
+          filters: |
+            python:
+              - 'packages/tealtiger-python/**'
+            mcp:
+              - 'packages/tealtiger-mcp/**'
+              - '.github/workflows/test.yml'
+
+  # ---------------------------------------------------------------------------
   # TypeScript type check + unit tests (hub repo)
   # ---------------------------------------------------------------------------
   typescript:
@@ -78,9 +107,8 @@ jobs:
   python:
     name: Python (tealtiger-python)
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'push' ||
-      contains(github.event.pull_request.changed_files, 'packages/tealtiger-python')
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
 
     steps:
       - name: Checkout
@@ -118,9 +146,8 @@ jobs:
   mcp:
     name: Python (tealtiger-mcp)
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'push' ||
-      contains(github.event.pull_request.changed_files, 'packages/tealtiger-mcp')
+    needs: changes
+    if: needs.changes.outputs.mcp == 'true'
 
     steps:
       - name: Checkout
